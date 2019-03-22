@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<orderDetails>
+    <custID>1001</custID>
+    <address>
+        <city>TVM</city>
+        <state>Kerala</state>
+        <country>India</country>
+    </address>
+    <orderTotal>150</orderTotal>
+</orderDetails>

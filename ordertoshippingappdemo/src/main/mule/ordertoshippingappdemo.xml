@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:jms="http://www.mulesoft.org/schema/mule/jms" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="56597284-92f3-47a1-8871-699abef70fa2" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="267ef99d-23ef-4b35-a5e1-7b0b915ae8b4" >
+		<salesforce:basic-connection username="justin@abc.com" password="Mule1Training" securityToken="UlhlIDKajUSwneJvQlyefrlh8"/>
+	</salesforce:sfdc-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="510b77d7-e82d-4da8-acdf-636695d54a9f" >
+		<db:my-sql-connection host="localhost" port="3306" user="mule" password="mule" database="training" />
+	</db:config>
+	<jms:config name="JMS_Config" doc:name="JMS Config" doc:id="be31efbb-e28d-4afc-a7f8-89307d1b7378" >
+		<jms:active-mq-connection username="admin" password="admin">
+			<jms:factory-configuration brokerUrl="tcp://localhost:61616" />
+		</jms:active-mq-connection>
+	</jms:config>
+	<flow name="ordertoshippingappdemoFlow" doc:id="5175e327-c54f-4d85-839d-2bf571d1c47b" >
+		<http:listener doc:name="Listener" doc:id="7b9777f8-30e4-40f7-af7b-04593b56f4ca" config-ref="HTTP_Listener_config" path="/CustomerOrder"/>
+		<set-variable value="#[payload.custID]" doc:name="cID" doc:id="f75f7e11-6114-41cb-914f-5f2f0e3978b3" variableName="cID"/>
+		<set-variable value="#[payload.orderTotal]" doc:name="oTotal" doc:id="f208b1f8-16df-4243-9be5-9335d55cbb2e" variableName="oTotal" mimeType="application/java"/>
+		<logger level="INFO" doc:name="Logger" doc:id="8c3d74ac-b099-45e4-b988-f08349e99012" message="#[vars.oTotal + 15]"/>
+		<flow-ref doc:name="Flow Reference" doc:id="4d822088-731a-415c-8c7c-d291d2eee429" name="getCustomerCountrySub_Flow"/>
+		<set-variable value="#[payload]" doc:name="selectedCustomer" doc:id="c7618a48-9903-406a-aabf-f3aa528a1f4d" variableName="selectedCustomer" mimeType="application/java"/>
+		<logger level="INFO" doc:name="Logger" doc:id="0ec8f2f5-1235-4e10-8f17-8830def98f40" message="#[payload.Country__c]"/>
+		<flow-ref doc:name="Flow Reference" doc:id="287a0246-be3e-456e-b045-ea075b9b7d3c" name="shippingChargesSub_Flow"/>
+		<set-variable value="#[payload.shippingCharge]" doc:name="dbDelCharge" doc:id="4980d7f8-9199-4770-8e5e-a7076a9e1cb0" variableName="dbDelCharge"/>
+		<logger level="INFO" doc:name="Logger" doc:id="8a689cec-511b-4c91-b3e6-ace4ba8cf855" message="#[vars.orderTotal]"/>
+		<logger level="INFO" doc:name="Logger" doc:id="082108ef-467f-472c-b54c-cc6f74a46d82" message="#[vars.dbDelCharge[0]]"/>
+		<set-variable value="#[vars.oTotal + vars.dbDelCharge[0]]" doc:name="totalAmount" doc:id="f7034385-05c2-498d-929c-0096e339a40b" variableName="totalAmount" mimeType="application/java"/>
+		<logger level="INFO" doc:name="Logger" doc:id="f8d06330-362b-4393-97b0-b2c90eb253d2" message="#[vars.totalAmount]"/>
+		<flow-ref doc:name="Flow Reference" doc:id="33af04b6-b4f0-4389-a14f-92741380f950" name="createOrderXMLSub_Flow"/>
+		<logger level="INFO" doc:name="Logger" doc:id="e2edf25f-af3b-485a-92ef-32970141dc71" message="#[payload]"/>
+		<flow-ref doc:name="Flow Reference" doc:id="e5c06a8d-067c-443d-9a7f-e7db2fb8fb1e" name="postOrderXMLToQueueSub_Flow"/>
+	</flow>
+	<sub-flow name="getCustomerCountrySub_Flow" doc:id="0b9ee840-e4fc-449f-97e1-c36d30564286" >
+		<logger level="INFO" doc:name="Logger" doc:id="c40a90d0-0d65-4d83-86eb-1a971dde7cae" message="#[payload.custID]"/>
+		<salesforce:query-single doc:id="e251e20d-bd1c-48a5-99a5-4a1ad103c9c4" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query >Select City__c, State__c, Country__c from Customer__c where CustID__c = :Key</salesforce:salesforce-query>
+			<salesforce:parameters ><![CDATA[#[output application/java
+---
+{
+	"Key" : payload.custID
+}]]]></salesforce:parameters>
+		</salesforce:query-single>
+	</sub-flow>
+	<sub-flow name="shippingChargesSub_Flow" doc:id="28b9949b-1a8e-4d8b-b55b-5646cea61c47" >
+		<logger level="INFO" doc:name="Logger" doc:id="94575c07-b485-4d47-bef0-16769739508f" message="#[payload.Country__c]" />
+		<db:select doc:id="08c0ac48-630d-4008-91e9-b1b49711054e" config-ref="Database_Config">
+			<db:sql >select shippingCharge  from `training`.shippingCost where countryName = :country</db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	country : payload.Country__c
+}]]]></db:input-parameters>
+		</db:select>
+	</sub-flow>
+	<sub-flow name="createOrderXMLSub_Flow" doc:id="8b4dede6-d2bf-42cb-97bf-6dd114d1387b" >
+		<logger level="INFO" doc:name="Logger" doc:id="4c0c1440-b461-49e0-bfd7-a5b62a75ff38" message="#[vars.cID]"/>
+		<ee:transform doc:name="Transform Message" doc:id="acca6bc1-a280-471c-891a-5dbc821f6418" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+---
+{
+	orderDetails: {
+		custID: vars.cID,
+		address: {
+			city: vars.selectedCustomer.City__c,
+			state: vars.selectedCustomer.State__c,
+			country: vars.selectedCustomer.Country__c
+		},
+		orderTotal: vars.totalAmount
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="postOrderXMLToQueueSub_Flow" doc:id="30eb57ea-38bd-46b2-a1ef-852c51fc51d3" >
+		<logger level="INFO" doc:name="Logger" doc:id="211f37f0-47c2-4377-baf7-7865d6086c15" message="#[payload]"/>
+		<jms:publish doc:id="73377760-1b3c-4148-8a84-bcb0e7268261" config-ref="JMS_Config" destination="SamsOrder"/>
+	</sub-flow>
+</mule>
